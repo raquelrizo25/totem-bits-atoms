@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Bits & Atoms · Tótem</title>
+<style>
+  /* =========================================================
+     TÓTEM BITS & ATOMS — prototipo v2
+     Resolución de diseño: 1080 x 1920 (vertical). Se escala solo.
+     Teclas: 0 sin sensor · 1 nadie · 2 se acerca · 3 delante
+             D panel debug · M silenciar · R volver al salvapantallas
+     ========================================================= */
+  :root{
+    --bg:#0a0a0c; --ink:#f5f6fa; --muted:#8b8d9c;
+    --accent:#6c5ce7; --accent-2:#2a2350; --card:#14141a;
+    --line:rgba(120,110,220,.16);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "Inter", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:#000;overflow:hidden;user-select:none;cursor:default}
+  body{font-family:var(--sans);color:var(--ink)}
+
+  #stage{position:absolute;left:50%;top:50%;width:1080px;height:1920px;transform-origin:center center;background:var(--bg);overflow:hidden}
+  #stage::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:linear-gradient(var(--line) 1px, transparent 1px),linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:90px 90px;
+    mask-image:radial-gradient(ellipse at 50% 45%, #000 30%, transparent 85%);
+  }
+  .glow{
+    position:absolute;left:50%;top:45%;width:1100px;height:1100px;transform:translate(-50%,-50%);pointer-events:none;
+    background:radial-gradient(circle, rgba(70,55,170,.38) 0%, rgba(40,30,110,.15) 35%, transparent 65%);
+    transition:opacity 1.2s ease, transform 1.2s ease;opacity:.75;
+  }
+  canvas#space{position:absolute;inset:0;pointer-events:none;z-index:1}
+  .screen{position:absolute;inset:0;z-index:2;transition:opacity .8s ease, transform .8s ease}
+  .screen.hidden{opacity:0;pointer-events:none;transform:scale(1.03)}
+  #flash{position:absolute;inset:0;z-index:20;pointer-events:none;background:radial-gradient(circle at 50% 45%, #fff 0%, #b9b0ff 25%, rgba(108,92,231,0) 70%);opacity:0}
+
+  /* ---------- SALVAPANTALLAS ---------- */
+  #saver{display:flex;flex-direction:column;align-items:center;justify-content:center}
+  #saver .brand{font-weight:800;font-size:112px;letter-spacing:-3px;line-height:1;margin-bottom:70px;transition:transform .9s cubic-bezier(.6,0,.2,1), opacity .9s}
+  .logo{--size:660px;width:var(--size);height:var(--size);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:2px}
+  .cell{position:relative}
+  .tri{position:absolute;inset:0;background:var(--ink);clip-path:polygon(0 0,100% 0,100% 100%);will-change:transform}
+  #saver .phrase{margin-top:70px;font-family:var(--mono);font-size:44px;letter-spacing:1px;min-height:60px;transition:opacity .4s}
+  #saver .phrase span{display:inline-block;opacity:0;transform:translateY(8px);transition:opacity .25s, transform .25s}
+  #saver .phrase span.on{opacity:1;transform:none}
+  #hint{position:absolute;bottom:170px;left:0;right:0;text-align:center;font-size:40px;font-weight:600;opacity:0;transition:opacity .8s ease}
+  #hint small{display:block;margin-top:14px;font-family:var(--mono);font-size:26px;color:var(--muted);font-weight:400}
+  #hint.show{opacity:1}
+  #hint .dot{display:inline-block;width:22px;height:22px;border-radius:50%;background:var(--accent);margin-right:16px;vertical-align:middle;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(108,92,231,.7)}70%{box-shadow:0 0 0 26px rgba(108,92,231,0)}100%{box-shadow:0 0 0 0 rgba(108,92,231,0)}}
+  #stage[data-presence="near"] .glow{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
+  #stage[data-presence="front"] .glow{opacity:1;transform:translate(-50%,-50%) scale(1.3)}
+  #stage[data-presence="away"] .glow{opacity:.45}
+  #greeting{position:absolute;top:150px;left:0;right:0;text-align:center;font-size:56px;font-weight:700;opacity:0;transform:translateY(-20px);transition:opacity .6s, transform .6s}
+  #greeting.show{opacity:1;transform:none}
+  /* Reacción de presencia */
+  #scanTag{
+    position:absolute;top:150px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:30px;color:#b7adff;
+    opacity:0;transition:opacity .5s;letter-spacing:2px
+  }
+  #scanTag b{color:var(--ink)}
+  #stage[data-presence="near"] #scanTag{opacity:1}
+  #greeting{font-family:var(--mono);font-size:44px;letter-spacing:4px;color:#ffd84d;text-shadow:0 0 18px rgba(255,216,77,.6)}
+  #greeting.show{animation:blink 1s steps(2) 3}
+  #greeting em{display:block;font-style:normal;font-family:var(--sans);font-size:60px;letter-spacing:0;color:var(--ink);text-shadow:none;margin-top:12px}
+  @keyframes blink{50%{opacity:.15}}
+  #hint .txt{transition:opacity .3s}
+  #stage[data-presence="front"] #hint{bottom:150px;font-size:46px}
+  #stage[data-presence="front"] #hint .dot{background:#ffd84d;animation:pulseY 1s infinite}
+  @keyframes pulseY{0%{box-shadow:0 0 0 0 rgba(255,216,77,.8)}70%{box-shadow:0 0 0 30px rgba(255,216,77,0)}100%{box-shadow:0 0 0 0 rgba(255,216,77,0)}}
+  #simBtn{
+    position:absolute;right:40px;bottom:40px;z-index:6;font-family:var(--mono);font-size:22px;color:#cfd0da;
+    background:rgba(20,20,30,.8);border:1px dashed rgba(255,255,255,.3);border-radius:999px;padding:14px 22px
+  }
+  #simBtn b{color:#ffd84d;font-weight:600}
+  #stage:has(#catalog:not(.hidden)) #simBtn{display:none}
+  /* Durante el salto espacial */
+  #saver.launch .brand{transform:scale(2.4);opacity:0}
+  #saver.launch .phrase,#saver.launch #hint,#saver.launch #greeting{opacity:0}
+
+  /* ---------- CATÁLOGO ---------- */
+  #catalog{display:flex;flex-direction:column;padding:90px 70px 60px}
+  .cat-head{display:flex;align-items:center;gap:30px}
+  .cat-head .logo{--size:120px;gap:1px}
+  .cat-head h1{font-size:76px;font-weight:800;letter-spacing:-2px;line-height:1}
+  .cat-head p{font-family:var(--mono);color:var(--muted);font-size:26px;margin-top:10px}
+  .intro{margin-top:46px;font-size:36px;line-height:1.38;color:#d8d9e3}
+  .intro b{color:var(--ink)}
+  .pillars{display:flex;gap:14px;margin-top:26px;flex-wrap:wrap}
+  .pillars span{font-family:var(--mono);font-size:22px;padding:10px 18px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#cfd0da}
+  .video-btn{
+    margin-top:30px;display:flex;align-items:center;gap:22px;width:100%;
+    padding:22px 26px;border-radius:24px;border:1px solid rgba(108,92,231,.5);
+    background:linear-gradient(90deg, rgba(108,92,231,.28), rgba(108,92,231,.05));
+    color:var(--ink);font-family:inherit;font-size:30px;font-weight:600;text-align:left
+  }
+  .video-btn .play{width:64px;height:64px;border-radius:50%;background:var(--ink);display:grid;place-items:center;flex:none}
+  .video-btn .play::after{content:"";border-left:22px solid #000;border-top:14px solid transparent;border-bottom:14px solid transparent;margin-left:6px}
+  .video-btn small{display:block;font-family:var(--mono);font-size:20px;color:var(--muted);font-weight:400;margin-top:4px}
+  .mentors-title{margin-top:34px;display:flex;justify-content:space-between;align-items:baseline}
+  .mentors-title h3{font-size:30px;font-weight:700}
+  .mentors-title span{font-family:var(--mono);font-size:20px;color:var(--muted)}
+  .mentors{display:flex;align-items:flex-start;gap:18px;margin-top:18px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+  .mentors::-webkit-scrollbar{display:none}
+  .mentor{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:112px;text-align:center;background:none;border:none;color:var(--ink);font-family:inherit;padding:0;opacity:0;transform:translateY(16px);transition:opacity .4s, transform .4s}
+  .mentor.in{opacity:1;transform:none}
+  .mentor .ph{width:104px;height:104px;margin:0 auto;border-radius:50%;overflow:hidden;position:relative;border:3px solid rgba(108,92,231,.6);background:#1a1a22}
+  .mentor .ph img{width:100%;height:100%;object-fit:cover;object-position:center 20%}
+  .mentor b{display:block;font-size:18px;margin-top:10px;line-height:1.15}
+  .mentor small{display:block;font-family:var(--mono);font-size:14px;color:var(--muted);margin-top:4px}
+  .card.portrait .thumb img{object-position:center 20%}
+  #detail.portrait .hero img{object-position:center 20%}
+  .chips{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+  .chip{font-size:25px;padding:13px 24px;border-radius:999px;border:1px solid rgba(255,255,255,.18);color:#cfd0da;background:transparent;font-family:inherit;transition:all .2s}
+  .chip.active{background:var(--ink);color:#000;border-color:var(--ink)}
+  .grid{margin-top:30px;flex:1;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:max-content;gap:24px;align-content:start;padding-bottom:40px;scrollbar-width:none}
+  .grid::-webkit-scrollbar{display:none}
+  .card{background:var(--card);border-radius:28px;overflow:hidden;border:1px solid rgba(255,255,255,.06);transform:translateY(40px) scale(.95);opacity:0;transition:transform .55s cubic-bezier(.2,.8,.2,1), opacity .5s ease}
+  .card.in{transform:none;opacity:1}
+  .card:active{transform:scale(.97)}
+  .card .thumb{height:300px;position:relative;overflow:hidden;background:#111}
+  .card .thumb img,.card .thumb video{width:100%;height:100%;object-fit:cover;display:block}
+  .card .badge{position:absolute;right:16px;top:16px;font-family:var(--mono);font-size:18px;background:rgba(0,0,0,.6);padding:6px 12px;border-radius:999px}
+  .card .body{padding:22px 26px 28px}
+  .card h4{font-size:31px;font-weight:700;line-height:1.15}
+  .card .tag{font-family:var(--mono);font-size:20px;color:var(--muted);margin-top:10px}
+  .back-home{position:absolute;right:70px;top:100px;font-size:24px;font-family:var(--mono);color:var(--muted);background:none;border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:12px 22px}
+  .idle-bar{position:absolute;left:0;bottom:0;height:6px;background:var(--accent);width:0;opacity:.6}
+
+  /* ---------- DETALLE ---------- */
+  #detail{position:absolute;inset:0;z-index:5;background:rgba(5,5,8,.94);backdrop-filter:blur(10px);display:flex;flex-direction:column;padding:90px 70px 70px;opacity:0;pointer-events:none;transition:opacity .45s ease}
+  #detail.open{opacity:1;pointer-events:auto}
+  #detail .cat{font-family:var(--mono);font-size:24px;color:#b7adff}
+  #detail .hero{height:760px;border-radius:34px;overflow:hidden;position:relative;background:#000;transform:translateY(40px) scale(.96);transition:transform .5s cubic-bezier(.2,.8,.2,1);margin-top:18px}
+  #detail.open .hero{transform:none}
+  #detail .hero img,#detail .hero video,#detail .hero iframe{width:100%;height:100%;object-fit:cover;border:0;display:block;animation:fadeIn .5s ease}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .thumbs{display:flex;gap:14px;margin-top:20px;overflow-x:auto;scrollbar-width:none;min-height:120px}
+  .thumbs::-webkit-scrollbar{display:none}
+  .thumbs button{flex:none;width:150px;height:110px;border-radius:16px;overflow:hidden;border:3px solid transparent;padding:0;background:#111;position:relative;opacity:.55;transition:all .2s}
+  .thumbs button.on{border-color:var(--accent);opacity:1}
+  .thumbs img,.thumbs video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .thumbs .vid::after{content:"▶";position:absolute;inset:0;display:grid;place-items:center;font-size:34px;color:#fff;text-shadow:0 2px 8px #000}
+  #detail h2{font-size:68px;font-weight:800;letter-spacing:-2px;margin-top:34px;line-height:1.05}
+  #detail .tags{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+  #detail .tags span{font-family:var(--mono);font-size:22px;padding:8px 18px;border-radius:999px;background:var(--accent-2);color:#cfc8ff}
+  #detail .desc{font-size:33px;line-height:1.45;color:#d6d7e0;margin-top:28px}
+  #detail .close{margin-top:auto;align-self:center;font-size:32px;font-weight:600;color:#000;background:var(--ink);border:none;border-radius:999px;padding:26px 70px;font-family:inherit}
+
+  .gen{position:absolute;inset:0;display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(3,1fr)}
+  .gen i{display:block;clip-path:polygon(0 0,100% 0,100% 100%)}
+
+  #debug{position:fixed;left:16px;bottom:16px;z-index:99;background:rgba(20,20,28,.95);border:1px solid #333;border-radius:12px;padding:12px 14px;font:13px/1.5 var(--mono);color:#ddd;display:none;min-width:250px}
+  #debug.show{display:block}
+  #debug button{font:12px var(--mono);margin:6px 4px 0 0;padding:5px 9px;border-radius:6px;border:1px solid #555;background:#222;color:#eee;cursor:pointer}
+  #debug button.on{background:var(--accent);border-color:var(--accent)}
+  #debug .k{color:#888}
+</style>
+</head>
+<body>
+
+<div id="stage" data-presence="none">
+  <div class="glow"></div>
+  <canvas id="space" width="1080" height="1920"></canvas>
+
+  <!-- ============ SALVAPANTALLAS ============ -->
+  <section id="saver" class="screen">
+    <div id="scanTag">📡 VISITANTE DETECTADO · <b id="dist">2,0 m</b></div>
+    <div id="greeting">▶ PLAYER 1 READY<em>¡Hola! 👋</em></div>
+    <div class="brand">Bits &amp; Atoms</div>
+    <div class="logo" id="bigLogo"></div>
+    <div class="phrase" id="phrase"></div>
+    <div id="hint"><span class="dot"></span><span class="txt" id="hintTxt">Toca para descubrir lo que hacemos</span><small id="hintSub">tap to explore</small></div>
+  </section>
+
+  <!-- ============ CATÁLOGO ============ -->
+  <section id="catalog" class="screen hidden">
+    <button class="back-home" id="backHome">← inicio</button>
+    <div class="cat-head">
+      <div class="logo" id="miniLogo"></div>
+      <div>
+        <h1>Bits &amp; Atoms</h1>
+        <p id="miniPhrase">bits &amp; atoms</p>
+      </div>
+    </div>
+
+    <p class="intro">Un proyecto de <b>Admira</b> donde se aprende tecnología <b>construyéndola</b>: inteligencia artificial, IoT y creatividad aplicadas a proyectos reales desde el primer día.</p>
+    <div class="pillars"><span>learning by doing</span><span>proyectos reales</span><span>mentores</span><span>colaboración</span></div>
+
+    <button class="video-btn" id="videoBtn"><span class="play"></span><span>Conoce Bits &amp; Atoms<small>vídeo de presentación</small></span></button>
+
+    <div class="chips" id="chips"></div>
+    <div class="grid" id="grid"></div>
+    <div class="idle-bar" id="idleBar"></div>
+  </section>
+
+  <!-- ============ DETALLE ============ -->
+  <section id="detail">
+    <div class="cat" id="dCat"></div>
+    <div class="hero" id="dHero"></div>
+    <div class="thumbs" id="dThumbs"></div>
+    <h2 id="dTitle"></h2>
+    <div class="tags" id="dTags"></div>
+    <p class="desc" id="dDesc"></p>
+    <button class="close" id="dClose">Volver a proyectos</button>
+  </section>
+
+  <div id="flash"></div>
+  <!-- Botón de demo: simula el sensor (quitar cuando haya sensor real) -->
+  <button id="simBtn">📡 simular visitante: <b id="simState">sin sensor</b></button>
+</div>
+
+<div id="debug">
+  <div><b>🧪 Panel de pruebas</b></div>
+  <div><span class="k">Presencia:</span> <span id="dbgPresence">sin sensor</span></div>
+  <div><span class="k">Sensor WS:</span> <span id="dbgWs">desconectado</span></div>
+  <div><span class="k">Sonido:</span> <span id="dbgSound">bloqueado (toca la pantalla)</span></div>
+  <div>
+    <button data-p="none">0 sin sensor</button>
+    <button data-p="away">1 nadie</button>
+    <button data-p="near">2 se acerca</button>
+    <button data-p="front">3 delante</button>
+  </div>
+  <div><button id="dbgMute">M silenciar</button><button id="dbgHome">R inicio</button></div>
+</div>
+
+<script>
+/* =========================================================
+   1) CONFIGURACIÓN
+   ========================================================= */
+const CONFIG = {
+  holdMs: 2600, morphMs: 1100,
+  idleResetMs: 60000,
+  galleryMs: 6000,               // cambio automático de foto en el detalle
+  sensorUrl: "ws://localhost:8765",
+  sound: true,
+  introVideo: "yt:PN577xVQ4SM"   // vídeo de presentación (YouTube)
+};
+
+/* Medios: de momento se cargan desde la web (necesita internet).
+   Para el tótem final: descargarlos a una carpeta "media/" y cambiar BASE a "media/". */
+const BASE = "https://www.institutoeuropeo.ai/";
+const P = BASE + "Projects/";
+
+const SHAPES = [
+  { phrase:"bits & atoms",           cells:[0,0,0, 0,0,0, 0,0,0] },
+  { phrase:"fablab",                 cells:[1,2,0, 3,0,2, 2,1,2] },
+  { phrase:"let creativity fly",     cells:[3,0,0, 3,2,0, 0,1,1] },
+  { phrase:"library",                cells:[3,1,2, 1,2,3, 0,3,1] },
+  { phrase:"it's all about balance", cells:[0,0,0, 0,2,0, 0,0,0] },
+  { phrase:"protect your beliefs",   cells:[2,1,0, 0,0,3, 0,0,2] },
+  { phrase:"studio",                 cells:[3,3,1, 3,2,0, 3,3,1] },
+  { phrase:"what if they are wrong", cells:[2,2,0, 2,2,2, 2,2,2] },
+];
+
+/* PROYECTOS Y ESPACIOS (contenido de institutoeuropeo.ai)
+   thumb: imagen de la tarjeta · media: galería (fotos .webp/.jpg, vídeos .mp4, o "yt:ID" para YouTube) */
+const PROJECTS = [
+  { title:"Programación", cat:"Programación", color:"#6c5ce7",
+    tags:["Software","Apps","IoT"],
+    desc:"Desarrollo de software, aplicaciones y sistemas a través de código y pensamiento lógico.",
+    thumb:P+"programacion/programacion1.webp",
+    media:[P+"programacion/programacion1.webp",P+"programacion/IOT.webp",P+"programacion/matProg.webp",P+"programacion/TomPro.webp",P+"programacion/JordiPro.webp",P+"programacion/Mano.webp"] },
+  { title:"Sistemas robóticos autónomos", cat:"Robótica", color:"#e17055",
+    tags:["Robots","Sensores","Automatización"],
+    desc:"Creación de robots y sistemas inteligentes que combinan hardware, programación y automatización: brazos robóticos, sensores y plataformas móviles.",
+    thumb:P+"Robotica/Robot.webp",
+    media:[P+"Robotica/perroRobot.mp4",P+"Robotica/robotDance.mp4",P+"Robotica/camisetaRobot.mp4",P+"Robotica/brazos.webp",P+"Robotica/brazo.webp",P+"Robotica/perroRBT.webp"] },
+  { title:"Impresión 3D", cat:"Impresión 3D", color:"#74b9ff",
+    tags:["FabLab","Prototipado","Diseño"],
+    desc:"Diseño y fabricación de objetos físicos a partir de modelos digitales mediante impresión 3D.",
+    thumb:P+"Impresion3D/hanna%20migflag.webp",
+    media:[P+"Impresion3D/enDirecto.mp4",P+"Impresion3D/hanna3D.mp4",P+"Impresion3D/impresion3d.webp",P+"Impresion3D/hanna%20migflag.webp"] },
+  { title:"Videojuegos", cat:"Videojuegos", color:"#fdcb6e",
+    tags:["Programación","Arte","Narrativa"],
+    desc:"Diseño y desarrollo de videojuegos interactivos combinando programación, arte y narrativa.",
+    thumb:BASE+"img/jeep.webp",
+    media:[P+"Vjuegos/VideoGameJeep.mp4",P+"Vjuegos/videoExpli.MP4",P+"Vjuegos/Backjeep.webp"] },
+  { title:"Realidad virtual", cat:"RV", color:"#00cec9",
+    tags:["Inmersivo","Interacción"],
+    desc:"Experiencias inmersivas en realidad virtual que exploran nuevas formas de interacción digital.",
+    thumb:P+"RV/ImgRV.webp",
+    media:[P+"RV/Video_gafasRv.mp4",P+"RV/ImgRV.webp"] },
+  { title:"Podcast", cat:"Audiovisual", color:"#fd79a8",
+    tags:["Podcast","YouTube"],
+    desc:"Conversaciones y contenido sonoro para compartir ideas, proyectos y aprendizaje. Más episodios en el canal de YouTube de Bits & Atoms.",
+    thumb:P+"podcast/podcast1.webp",
+    media:["yt:_Fa6OJ_CoUQ","yt:ZZ4M4r3-CvQ","yt:aFGzTiHh0Ho",P+"podcast/podcast3.webp",P+"podcast/podcastElena.webp",P+"podcast/pddcast.webp",P+"podcast/podcastAg.webp",P+"podcast/pdcs.webp"] },
+  { title:"Realización", cat:"Audiovisual", color:"#a29bfe",
+    tags:["Grabación","Edición","Producción"],
+    desc:"Producción audiovisual de proyectos tecnológicos, desde la grabación hasta la edición final.",
+    thumb:P+"Realizacion/podcast2.webp",
+    media:[P+"Realizacion/realizacionVideoPol.mp4",P+"Realizacion/realizacion.webp",P+"Realizacion/realizacion1.webp",P+"Realizacion/PodcastBA.webp",P+"Realizacion/reali1.webp",P+"Realizacion/reali2.webp",P+"Realizacion/reali3.webp",P+"Realizacion/reali4.webp",P+"Realizacion/reali5.webp",P+"Realizacion/reali6.webp",P+"Realizacion/reali7.webp"] },
+
+  { title:"Espacios de trabajo", cat:"Espacios", color:"#55efc4",
+    tags:["Mesas en equipo","Pantallas","Salas de reuniones","Videollamada"],
+    desc:"Salas equipadas donde crear y desarrollar proyectos para clientes.",
+    thumb:BASE+"img/espacio_desarrollo.webp",
+    media:[BASE+"img/espacio_desarrollo.webp",P+"programacion/programacion.webp",P+"programacion/esp2.webp"] },
+  { title:"Sala 360", cat:"Espacios", color:"#81ecec",
+    tags:["Proyección envolvente","Videoconferencia","Iluminación regulable"],
+    desc:"Sala de reuniones y videoconferencias con proyección inmersiva 360 para una experiencia envolvente.",
+    thumb:BASE+"img/sala_360R.webp",
+    media:[BASE+"img/sala_360R.webp"] },
+  { title:"FabLab", cat:"Espacios", color:"#74b9ff",
+    tags:["Impresoras 3D","Láser","CNC","Electrónica"],
+    desc:"Taller de fabricación digital equipado con impresoras 3D, cortadoras láser, fresadoras CNC y otras herramientas.",
+    thumb:P+"Impresion3D/impresion3d.webp",
+    media:[P+"Impresion3D/impresion3d.webp","https://images.unsplash.com/photo-1694701503673-379c9e0d887e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"] },
+  { title:"Showrooms", cat:"Espacios", color:"#ffeaa7",
+    tags:["IoT","Gran formato","Networking"],
+    desc:"Los espacios que tus amigos no creerán que existen. Sólo si formas parte de Bits & Atoms lo entenderás.",
+    thumb:BASE+"img/showroom1.webp",
+    media:[BASE+"img/showroom1.webp",BASE+"img/show.webp",BASE+"img/cafete.webp",BASE+"img/jeep.webp"] },
+  { title:"Universidad", cat:"Espacios", color:"#fab1a0",
+    tags:["Aulas","Trabajo colaborativo","Mentoring"],
+    desc:"Campus académico para que los alumnos socialicen. Las mejores ideas surgen aquí.",
+    thumb:BASE+"img/uni.webp",
+    media:[BASE+"img/desarrollo.webp",BASE+"img/desarrollo1.webp",BASE+"img/uni2.webp",BASE+"img/uni.webp"] },
+];
+
+/* MENTORES (de la web) */
+const M = BASE + "Mentores/";
+const MENTORS = [
+  { name:"Carlos Silva",        area:"Entrepreneurship",       photo:M+"Silva_Carlos.webp",
+    desc:"Diseña y desarrolla proyectos emprendedores, trabajando el modelo de negocio, la estrategia y la ejecución." },
+  { name:"Marc Segarra",        area:"Creatividad",            photo:M+"Marc_Segarra.webp",
+    desc:"Explora y expande los límites de tu imaginación, convirtiendo ideas innovadoras en realidades impactantes." },
+  { name:"Daniel Vidal",        area:"Propiedad intelectual",  photo:M+"Daniel_Vidal.webp",
+    desc:"Protege y maximiza el valor de tus ideas y productos con las herramientas legales adecuadas." },
+  { name:"Jordi Palou",         area:"IoT",                    photo:M+"Jordi_Palou.webp",
+    desc:"Integra el mundo físico y el digital creando soluciones inteligentes, aprendiendo a diseñar y conectar sistemas reales." },
+  { name:"Carles Mayans",       area:"Estrategia y contenido", photo:M+"Carles_Mayans.webp",
+    desc:"Aprende a comunicar de manera efectiva y a crear contenido con criterio. La creatividad sin estrategia sólo es arte." },
+  { name:"Miguel Fernández",    area:"Arcade",                 photo:M+"Miguel_Fern%C3%A1ndez.webp",
+    desc:"Explora el interior de las máquinas arcade, abriéndolas, reparándolas y entendiendo cómo funcionan." },
+  { name:"Joan Melchor",        area:"Robótica",               photo:M+"Joan_Melchor.webp",
+    desc:"Diseña y programa sistemas robóticos automatizados, trabajando con brazos robóticos, sensores y plataformas móviles." },
+  { name:"Juan Antonio Domingo",area:"Producción audiovisual", photo:M+"ja_Domingo.webp",
+    desc:"Da vida a tus ideas con excelencia técnica y creatividad, dominando cada etapa de la producción y postproducción audiovisual." },
+];
+// Los mentores también aparecen en el catálogo con el filtro "Mentores"
+MENTORS.forEach(m=>PROJECTS.push({ title:m.name, cat:"Mentores", color:"#6c5ce7", tags:[m.area,"Mentor"], desc:m.desc, thumb:m.photo, media:[m.photo], portrait:true }));
+
+/* =========================================================
+   2) ESTADO + ESCALADO
+   ========================================================= */
+let wsState="desconectado";
+let presence="none";
+const state={screen:"saver", filter:"Todos", busy:false};
+const dbg=document.getElementById("debug");
+const stage=document.getElementById("stage");
+function fit(){ const s=Math.min(innerWidth/1080, innerHeight/1920); stage.style.transform=`translate(-50%,-50%) scale(${s})`; }
+addEventListener("resize", fit); fit();
+
+/* =========================================================
+   3) SONIDO (Web Audio, generado por código)
+   ========================================================= */
+const Sound = {
+  ctx:null, master:null, muted:!CONFIG.sound,
+  unlock(){
+    if(!this.ctx){
+      const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+      this.ctx=new AC(); this.master=this.ctx.createGain(); this.master.gain.value=.5; this.master.connect(this.ctx.destination);
+    }
+    if(this.ctx.state==="suspended") this.ctx.resume();
+    updateDebug();
+  },
+  ok(){ return this.ctx && this.ctx.state==="running" && !this.muted; },
+  tone(freq,t0,dur,type="sine",vol=.2,endFreq){
+    const c=this.ctx,o=c.createOscillator(),g=c.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq,t0);
+    if(endFreq) o.frequency.exponentialRampToValueAtTime(endFreq,t0+dur);
+    g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(vol,t0+.012); g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+    o.connect(g); g.connect(this.master); o.start(t0); o.stop(t0+dur+.05);
+  },
+  noise(t0,dur,f0,f1,vol=.22,q=1.2){
+    const c=this.ctx,buf=c.createBuffer(1,c.sampleRate*dur,c.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    const src=c.createBufferSource(); src.buffer=buf;
+    const f=c.createBiquadFilter(); f.type="bandpass"; f.Q.value=q;
+    f.frequency.setValueAtTime(f0,t0); f.frequency.exponentialRampToValueAtTime(f1,t0+dur);
+    const g=c.createGain(); g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(vol,t0+dur*.25); g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+    src.connect(f); f.connect(g); g.connect(this.master); src.start(t0);
+  },
+  tap(){ if(!this.ok())return; const t=this.ctx.currentTime; this.tone(880,t,.08,"square",.06); this.tone(1320,t+.03,.06,"square",.04); },
+  tick(){ if(!this.ok())return; this.tone(1760+Math.random()*400,this.ctx.currentTime,.05,"triangle",.03); },
+  chime(){ if(!this.ok())return; const t=this.ctx.currentTime; [523.25,659.25,783.99,1046.5].forEach((f,i)=>this.tone(f,t+i*.09,.9,"sine",.14)); },
+  whoosh(up=true){ if(!this.ok())return; this.noise(this.ctx.currentTime,.5,up?300:2400,up?2400:300,.2); },
+  // 🚀 Entrada espacial: power-up arcade + motor de despegue + salto al hiperespacio
+  launch(){
+    if(!this.ok())return; const t=this.ctx.currentTime;
+    // arpegio arcade (onda cuadrada, tipo "power-up")
+    [261.6,329.6,392,523.3,659.3,784,1046.5,1318.5].forEach((f,i)=>this.tone(f,t+i*.055,.14,"square",.07));
+    // motor: grave que sube
+    this.tone(55,t,1.4,"sawtooth",.12,220);
+    this.noise(t+.1,1.2,200,4000,.18,.8);
+    // láser "piu" al saltar
+    this.tone(2400,t+.75,.35,"square",.06,180);
+    // llegada: acorde brillante
+    [523.3,783.99,1046.5,1568].forEach((f,i)=>this.tone(f,t+1.05+i*.02,1.2,"triangle",.07));
+  },
+  // ping de sonar/LiDAR al detectar a la persona
+  ping(close){ if(!this.ok())return; const t=this.ctx.currentTime; this.tone(close?1568:1175,t,.35,"sine",.09); this.tone(close?3136:2350,t,.12,"sine",.03); },
+  // moneda arcade "PLAYER 1" cuando se pone delante
+  coin(){ if(!this.ok())return; const t=this.ctx.currentTime; this.tone(988,t,.08,"square",.08); this.tone(1319,t+.08,.35,"square",.08); },
+  // vuelta al salvapantallas: bajada tipo "power-down"
+  powerDown(){ if(!this.ok())return; const t=this.ctx.currentTime; [1046.5,784,523.3,392,261.6].forEach((f,i)=>this.tone(f,t+i*.06,.12,"square",.05)); this.noise(t,.6,2400,200,.12); }
+};
+Sound.unlock();
+
+/* =========================================================
+   4) LOGO ANIMADO
+   ========================================================= */
+function buildLogo(el){
+  const tris=[];
+  for(let i=0;i<9;i++){
+    const cell=document.createElement("div"); cell.className="cell";
+    const tri=document.createElement("div"); tri.className="tri";
+    cell.appendChild(tri); el.appendChild(cell); tris.push({el:tri, angle:0});
+  }
+  return tris;
+}
+const bigTris=buildLogo(document.getElementById("bigLogo"));
+const miniTris=buildLogo(document.getElementById("miniLogo"));
+
+function setShape(tris, shape, animate, scatter=1, withSound=false){
+  tris.forEach((t,i)=>{
+    let target=shape.cells[i]*90; while(target<t.angle) target+=360;
+    const from=t.angle; t.angle=target;
+    if(!animate){ t.el.style.transform=`rotate(${target}deg)`; return; }
+    const dx=(Math.random()-.5)*160*scatter, dy=(Math.random()-.5)*160*scatter, spin=(Math.random()-.5)*120*scatter;
+    const anim=t.el.animate([
+      {transform:`translate(0,0) rotate(${from}deg) scale(1)`},
+      {transform:`translate(${dx}px,${dy}px) rotate(${(from+target)/2+spin}deg) scale(.82)`, offset:.45},
+      {transform:`translate(0,0) rotate(${target}deg) scale(1)`}
+    ],{duration:CONFIG.morphMs, delay:Math.random()*180, easing:"cubic-bezier(.6,0,.2,1)", fill:"forwards"});
+    if(withSound) anim.onfinish=()=>Sound.tick();
+  });
+}
+
+let shapeIdx=0;
+const phraseEl=document.getElementById("phrase");
+function typePhrase(text){
+  phraseEl.innerHTML="";
+  [...text].forEach((ch,i)=>{
+    const s=document.createElement("span"); s.textContent=ch===" "?" ":ch; phraseEl.appendChild(s);
+    setTimeout(()=>s.classList.add("on"),300+i*35);
+  });
+}
+function nextShape(){
+  if(state.busy) return;
+  shapeIdx=(shapeIdx+1)%SHAPES.length; const sh=SHAPES[shapeIdx];
+  setShape(bigTris, sh, true, 1, state.screen==="saver" && presence!=="away");
+  setShape(miniTris, sh, true, .25);
+  typePhrase(sh.phrase);
+  document.getElementById("miniPhrase").textContent=sh.phrase;
+}
+setShape(bigTris,SHAPES[0],false); setShape(miniTris,SHAPES[0],false); typePhrase(SHAPES[0].phrase);
+setInterval(nextShape, CONFIG.holdMs+CONFIG.morphMs);
+
+/* =========================================================
+   5) ESPACIO: estrellas de fondo + salto al hiperespacio
+   ========================================================= */
+const cv=document.getElementById("space"), cx=cv.getContext("2d");
+const CX=540, CY=860;
+const stars=Array.from({length:260},()=>newStar(true));
+function newStar(rand){
+  const a=Math.random()*Math.PI*2, d=rand?Math.random()*1100:Math.random()*40;
+  return {a, d, z:Math.random()*.9+.1, r:Math.random()*1.8+.5, hue:Math.random()<.25?"255,255,255":"150,135,255"};
+}
+let warp=0, warpTarget=0;   // 0 = calma · 1 = hiperespacio
+/* Escáner tipo LiDAR alrededor del logo + "bits" que se juntan hacia el logo */
+let scan=0, scanAlpha=0, sweep=0, lastPing=0;
+const blips=[];
+function logoCenter(){ const l=document.getElementById("bigLogo"); return {x:540, y:l.offsetTop+l.offsetHeight/2}; }
+function drawScanner(){
+  const want = (state.screen==="saver" && (presence==="near"||presence==="front")) ? 1 : 0;
+  scanAlpha += (want-scanAlpha)*.08;
+  if(scanAlpha<.01) return;
+  const {x:LX,y:LY}=logoCenter(), R=520;
+  sweep += presence==="front" ? .055 : .03;
+  cx.save(); cx.globalAlpha=scanAlpha;
+  // anillos de distancia
+  cx.strokeStyle="rgba(150,135,255,.22)"; cx.lineWidth=1.5;
+  [180,300,420,520].forEach(r=>{ cx.beginPath(); cx.arc(LX,LY,r,0,Math.PI*2); cx.stroke(); });
+  cx.setLineDash([6,10]); cx.beginPath(); cx.moveTo(LX-R,LY); cx.lineTo(LX+R,LY); cx.moveTo(LX,LY-R); cx.lineTo(LX,LY+R); cx.stroke(); cx.setLineDash([]);
+  // haz del escáner (estela)
+  for(let k=0;k<26;k++){
+    const a=sweep-k*.025;
+    cx.strokeStyle=`rgba(140,120,255,${.45*(1-k/26)})`; cx.lineWidth=4;
+    cx.beginPath(); cx.moveTo(LX,LY); cx.lineTo(LX+Math.cos(a)*R, LY+Math.sin(a)*R); cx.stroke();
+  }
+  // puntos detectados (nube de puntos)
+  if(Math.random()<.5) blips.push({a:sweep+Math.random()*.05, r:150+Math.random()*370, life:1});
+  // "persona" detectada: grupo de puntos abajo (donde estaría el visitante)
+  const pa=Math.PI/2, pr=presence==="front"?250:430;
+  if(Math.abs(((sweep-pa)%(Math.PI*2)+Math.PI*2)%(Math.PI*2))<.08){
+    for(let i=0;i<14;i++) blips.push({a:pa+(Math.random()-.5)*.35, r:pr+(Math.random()-.5)*50, life:1.6, hot:true});
+    const now=performance.now(); if(now-lastPing>500){ lastPing=now; Sound.ping(presence==="front"); }
+  }
+  for(let i=blips.length-1;i>=0;i--){
+    const b=blips[i]; b.life-=.012; if(b.life<=0){ blips.splice(i,1); continue; }
+    cx.fillStyle = b.hot ? `rgba(255,216,77,${Math.min(1,b.life)})` : `rgba(190,180,255,${b.life*.6})`;
+    cx.beginPath(); cx.arc(LX+Math.cos(b.a)*b.r, LY+Math.sin(b.a)*b.r, b.hot?5:2.5, 0, Math.PI*2); cx.fill();
+  }
+  cx.restore();
+}
+function drawSpace(){
+  warp+=(warpTarget-warp)*.06;
+  cx.clearRect(0,0,1080,1920);
+  drawScanner();
+  const base = presence==="front"?.9 : presence==="near"?.6 : .35;
+  // con alguien cerca, los "bits" viajan HACIA el logo (bits → átomos)
+  const attract = state.screen==="saver" && warp<.1 && (presence==="near"||presence==="front");
+  for(const s of stars){
+    const v = attract ? -(presence==="front"?3.2:1.6)*s.z : (base+warp*38)*s.z;
+    const prev=s.d; s.d+=v;
+    if(s.d<30){ Object.assign(s,newStar(true)); s.d=900+Math.random()*400; continue; }
+    if(s.d>1300){ Object.assign(s,newStar(false)); continue; }
+    const x=CX+Math.cos(s.a)*s.d, y=CY+Math.sin(s.a)*s.d*1.1;
+    const alpha=Math.min(1,(s.d/400))*(.35+warp*.65);
+    if(warp>.05){
+      const px=CX+Math.cos(s.a)*prev*(1-warp*.4), py=CY+Math.sin(s.a)*prev*1.1*(1-warp*.4);
+      cx.strokeStyle=`rgba(${s.hue},${alpha})`; cx.lineWidth=s.r*(1+warp*1.5);
+      cx.beginPath(); cx.moveTo(px,py); cx.lineTo(x,y); cx.stroke();
+    }else{
+      cx.fillStyle=`rgba(${s.hue},${alpha*.8})`; cx.beginPath(); cx.arc(x,y,s.r,0,Math.PI*2); cx.fill();
+    }
+  }
+  requestAnimationFrame(drawSpace);
+}
+drawSpace();
+
+/* =========================================================
+   6) PRESENCIA (sensor por WebSocket o simulado)
+   ========================================================= */
+const hint=document.getElementById("hint"), greeting=document.getElementById("greeting");
+const HINTS={
+  none:["Toca para descubrir lo que hacemos","tap to explore"],
+  near:["¡Acércate! Tenemos algo que enseñarte 👀","come closer"],
+  front:["Toca la pantalla para empezar","press start"]
+};
+let distTimer=null;
+function setPresence(p){
+  if(p===presence) return;
+  const prev=presence; presence=p; stage.dataset.presence=p;
+  hint.classList.toggle("show", p!=="away");
+  greeting.classList.toggle("show", p==="front");
+  const h=HINTS[p]||HINTS.none;
+  document.getElementById("hintTxt").textContent=h[0]; document.getElementById("hintSub").textContent=h[1];
+  document.getElementById("simState").textContent={none:"sin sensor",away:"nadie",near:"se acerca",front:"delante"}[p];
+  // distancia simulada que va bajando
+  clearInterval(distTimer);
+  if(p==="near"){ let d=2.6; distTimer=setInterval(()=>{ d=Math.max(1.2,d-.1); document.getElementById("dist").textContent=d.toFixed(1).replace(".",",")+" m"; },300); }
+  if(state.screen==="saver"){
+    if(p==="near" && prev!=="near"){ Sound.whoosh(true); lookAt(); }
+    if(p==="front" && prev!=="front"){ Sound.coin(); setTimeout(()=>Sound.chime(),250); waveLogo(); }
+  }
+  updateDebug();
+}
+// Los triángulos "miran" hacia el visitante (se inclinan hacia abajo, donde está la persona)
+function lookAt(){
+  bigTris.forEach((t,i)=>{
+    const row=Math.floor(i/3);
+    t.el.animate([
+      {transform:`rotate(${t.angle}deg) translate(0,0)`},
+      {transform:`rotate(${t.angle}deg) translateY(${(row+1)*10}px) scale(.94)`},
+      {transform:`rotate(${t.angle}deg) translate(0,0)`}
+    ],{duration:900, delay:i*40, easing:"ease-in-out"});
+  });
+}
+// Ola en el logo: los triángulos dan un "salto" en cascada, como saludando
+function waveLogo(){
+  bigTris.forEach((t,i)=>{
+    const col=i%3, row=Math.floor(i/3), d=(col+row)*90;
+    t.el.animate([
+      {transform:`rotate(${t.angle}deg) scale(1)`, filter:"none"},
+      {transform:`rotate(${t.angle+90}deg) scale(1.12)`, filter:"drop-shadow(0 0 18px #ffd84d)", offset:.5},
+      {transform:`rotate(${t.angle+360}deg) scale(1)`, filter:"none"}
+    ],{duration:900, delay:d, easing:"cubic-bezier(.5,0,.3,1)"}).onfinish=()=>{ t.angle+=360; t.el.style.transform=`rotate(${t.angle}deg)`; };
+  });
+}
+// Botón de demo: cada toque avanza nadie → se acerca → delante → sin sensor
+document.getElementById("simBtn").addEventListener("pointerdown",e=>{
+  e.stopPropagation(); Sound.unlock();
+  const order=["away","near","front","none"];
+  setPresence(order[(order.indexOf(presence)+1)%order.length]);
+});
+hint.classList.add("show");
+function connectSensor(){
+  let ws; try{ ws=new WebSocket(CONFIG.sensorUrl); }catch(e){ return setTimeout(connectSensor,5000); }
+  ws.onopen=()=>{ wsState="conectado ✅"; setPresence("away"); updateDebug(); };
+  ws.onmessage=(ev)=>{ try{ const z=JSON.parse(ev.data).zona; setPresence({lejos:"away",cerca:"near",delante:"front"}[z]||"away"); }catch(e){} };
+  ws.onclose=()=>{ if(wsState.startsWith("conectado")) setPresence("none"); wsState="desconectado"; updateDebug(); setTimeout(connectSensor,5000); };
+  ws.onerror=()=>{};
+}
+connectSensor();
+
+/* =========================================================
+   7) NAVEGACIÓN
+   ========================================================= */
+const saver=document.getElementById("saver"), catalog=document.getElementById("catalog"), detail=document.getElementById("detail"), flash=document.getElementById("flash");
+
+// 🚀 Toca para descubrir → los triángulos salen disparados, salto al hiperespacio, flash y aparece el catálogo
+function openCatalog(){
+  if(state.screen!=="saver" || state.busy) return;
+  state.busy=true;
+  Sound.launch();
+  saver.classList.add("launch");
+  warpTarget=1;
+  bigTris.forEach((t,i)=>{
+    const col=i%3-1, row=Math.floor(i/3)-1;
+    const ang=Math.atan2(row||(Math.random()-.5), col||(Math.random()-.5));
+    const dist=1400+Math.random()*500;
+    t.el.animate([
+      {transform:`translate(0,0) rotate(${t.angle}deg) scale(1)`, opacity:1},
+      {transform:`translate(${-Math.cos(ang)*30}px,${-Math.sin(ang)*30}px) rotate(${t.angle-15}deg) scale(.9)`, opacity:1, offset:.25},
+      {transform:`translate(${Math.cos(ang)*dist}px,${Math.sin(ang)*dist}px) rotate(${t.angle+360+Math.random()*360}deg) scale(2.2)`, opacity:0}
+    ],{duration:1100, delay:i*25, easing:"cubic-bezier(.7,0,.3,1)", fill:"forwards"});
+  });
+  setTimeout(()=>{ flash.animate([{opacity:0},{opacity:.9,offset:.3},{opacity:0}],{duration:700,easing:"ease-out"}); },950);
+  setTimeout(()=>{
+    warpTarget=0;
+    state.screen="catalog";
+    saver.classList.add("hidden"); catalog.classList.remove("hidden");
+    renderGrid(); resetIdle();
+  },1150);
+  setTimeout(()=>{
+    // dejar el logo grande listo para cuando se vuelva
+    saver.classList.remove("launch");
+    bigTris.forEach(t=>{ t.el.getAnimations().forEach(a=>a.cancel()); t.el.style.transform=`rotate(${t.angle}deg)`; });
+    state.busy=false;
+  },2200);
+}
+function goHome(){
+  closeDetail(true);
+  if(state.screen==="saver") return;
+  state.screen="saver"; Sound.powerDown();
+  catalog.classList.add("hidden"); saver.classList.remove("hidden");
+  document.getElementById("grid").scrollTop=0;
+  // los triángulos vuelven a encajar desde fuera
+  bigTris.forEach((t,i)=>{
+    t.el.animate([
+      {transform:`translate(${(Math.random()-.5)*900}px,${(Math.random()-.5)*900}px) rotate(${t.angle-270}deg) scale(.3)`, opacity:0},
+      {transform:`translate(0,0) rotate(${t.angle}deg) scale(1)`, opacity:1}
+    ],{duration:900, delay:i*40, easing:"cubic-bezier(.2,.8,.2,1)"});
+  });
+}
+saver.addEventListener("pointerdown",()=>{ Sound.unlock(); openCatalog(); });
+document.getElementById("backHome").addEventListener("click",e=>{ e.stopPropagation(); Sound.tap(); goHome(); });
+document.getElementById("videoBtn").addEventListener("click",()=>{
+  Sound.tap();
+  openDetail({title:"Conoce Bits & Atoms", cat:"Presentación", tags:["IA","IoT","Creatividad","Learning by doing"],
+    desc:"Bits and Atoms es un proyecto de Admira pensado para formar, acompañar y crear oportunidades reales para jóvenes con talento. Construir, probar y equivocarse es parte del camino.",
+    color:"#6c5ce7", media:[CONFIG.introVideo]}, 0);
+});
+
+// Filtros
+const cats=["Todos", ...new Set(PROJECTS.map(p=>p.cat))];
+const chips=document.getElementById("chips");
+cats.forEach(c=>{
+  const b=document.createElement("button"); b.className="chip"+(c==="Todos"?" active":""); b.textContent=c;
+  b.onclick=()=>{ Sound.tap(); state.filter=c; [...chips.children].forEach(x=>x.classList.toggle("active",x===b)); renderGrid(); };
+  chips.appendChild(b);
+});
+
+// Miniatura de respaldo si una imagen no carga (sin internet, etc.)
+function genThumb(color, seed){
+  const g=document.createElement("div"); g.className="gen"; g.style.background=`linear-gradient(135deg, ${color}33, #0d0d12)`;
+  let s=seed*9301+49297;
+  for(let i=0;i<18;i++){ s=(s*9301+49297)%233280; const r=s/233280; const t=document.createElement("i");
+    t.style.background=r>.55?color:(r>.3?"rgba(255,255,255,.85)":"transparent"); t.style.transform=`rotate(${Math.floor(r*4)*90}deg)`; g.appendChild(t); }
+  return g;
+}
+const isVideo=src=>/\.(mp4|webm|mov)(#.*)?$/i.test(src);
+const isYT=src=>src.startsWith("yt:");
+function mediaEl(src, p, i, {thumb=false}={}){
+  if(isYT(src)){
+    const id=src.slice(3);
+    if(thumb){ const im=document.createElement("img"); im.src=`https://img.youtube.com/vi/${id}/mqdefault.jpg`; im.onerror=()=>im.replaceWith(genThumb(p.color,i+1)); return im; }
+    const f=document.createElement("iframe");
+    f.src=`https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&rel=0&modestbranding=1`;
+    f.allow="autoplay; encrypted-media"; return f;
+  }
+  if(isVideo(src)){
+    const v=document.createElement("video");
+    v.muted=true; v.loop=!thumb; v.autoplay=!thumb; v.playsInline=true; v.preload=thumb?"metadata":"auto";
+    v.src=thumb? src.split("#")[0]+"#t=1.0" : src;
+    v.onerror=()=>v.replaceWith(genThumb(p.color,i+1)); return v;
+  }
+  const im=document.createElement("img"); im.src=src; im.alt=p.title; im.loading="lazy";
+  im.onerror=()=>im.replaceWith(genThumb(p.color,i+1)); return im;
+}
+
+function renderGrid(){
+  const grid=document.getElementById("grid"); grid.innerHTML=""; let n=0;
+  PROJECTS.forEach((p,i)=>{
+    if(state.filter!=="Todos" && p.cat!==state.filter) return;
+    const card=document.createElement("div"); card.className="card"+(p.portrait?" portrait":"");
+    const th=document.createElement("div"); th.className="thumb"; th.appendChild(mediaEl(p.thumb||p.media[0],p,i));
+    const vids=p.media.filter(m=>isVideo(m)||isYT(m)).length;
+    if(vids){ const b=document.createElement("span"); b.className="badge"; b.textContent=`▶ ${vids} vídeo${vids>1?"s":""}`; th.appendChild(b); }
+    const body=document.createElement("div"); body.className="body"; body.innerHTML="<h4></h4><div class='tag'></div>";
+    body.querySelector("h4").textContent=p.title; body.querySelector(".tag").textContent=p.cat.toLowerCase();
+    card.append(th,body);
+    card.onclick=()=>{ Sound.tap(); openDetail(p,i); };
+    grid.appendChild(card);
+    const k=n++; setTimeout(()=>card.classList.add("in"), 80+k*80);
+  });
+}
+
+// Fila de mentores
+function renderMentors(){
+  const box=document.getElementById("mentors"); box.innerHTML="";
+  MENTORS.forEach((m,k)=>{
+    const p=PROJECTS.find(x=>x.portrait && x.title===m.name), i=PROJECTS.indexOf(p);
+    const b=document.createElement("button"); b.className="mentor";
+    const ph=document.createElement("div"); ph.className="ph"; ph.appendChild(mediaEl(m.photo,p,i));
+    const nm=document.createElement("b"); nm.textContent=m.name;
+    const ar=document.createElement("small"); ar.textContent=m.area.toLowerCase();
+    b.append(ph,nm,ar);
+    b.onclick=()=>{ Sound.tap(); openDetail(p,i); };
+    box.appendChild(b);
+    setTimeout(()=>b.classList.add("in"), 200+k*60);
+  });
+}
+
+// Detalle con galería
+let galTimer=null;
+function showMedia(p,i,idx){
+  const hero=document.getElementById("dHero"); hero.innerHTML="";
+  const src=p.media[idx]; const el=mediaEl(src,p,i); hero.appendChild(el);
+  [...document.getElementById("dThumbs").children].forEach((b,k)=>b.classList.toggle("on",k===idx));
+  clearTimeout(galTimer);
+  const next=()=>showMedia(p,i,(idx+1)%p.media.length);
+  if(p.media.length>1){
+    if(isVideo(src)){ el.loop=false; el.onended=next; galTimer=setTimeout(next,45000); }
+    else if(!isYT(src)) galTimer=setTimeout(next,CONFIG.galleryMs);
+  }
+}
+function openDetail(p,i){
+  document.getElementById("dCat").textContent=p.cat.toLowerCase();
+  document.getElementById("dTitle").textContent=p.title;
+  document.getElementById("dDesc").textContent=p.desc;
+  const tags=document.getElementById("dTags"); tags.innerHTML="";
+  p.tags.forEach(t=>{ const s=document.createElement("span"); s.textContent=t; tags.appendChild(s); });
+  const th=document.getElementById("dThumbs"); th.innerHTML="";
+  th.style.display=p.media.length>1?"flex":"none";
+  p.media.forEach((m,k)=>{
+    const b=document.createElement("button"); if(isVideo(m)||isYT(m)) b.classList.add("vid");
+    b.appendChild(mediaEl(m,p,i,{thumb:true}));
+    b.onclick=()=>{ Sound.tap(); resetIdle(); showMedia(p,i,k); };
+    th.appendChild(b);
+  });
+  detail.classList.toggle("portrait", !!p.portrait);
+  showMedia(p,i,0);
+  detail.classList.add("open"); Sound.whoosh(true); resetIdle();
+}
+function closeDetail(silent){
+  if(!detail.classList.contains("open")) return;
+  clearTimeout(galTimer); detail.classList.remove("open");
+  setTimeout(()=>{ if(!detail.classList.contains("open")) document.getElementById("dHero").innerHTML=""; },450);
+  if(!silent) Sound.whoosh(false);
+}
+document.getElementById("dClose").addEventListener("click",()=>{ Sound.tap(); closeDetail(); });
+
+/* =========================================================
+   8) INACTIVIDAD
+   ========================================================= */
+let idleTimer, idleStart=0; const idleBar=document.getElementById("idleBar");
+function resetIdle(){ clearTimeout(idleTimer); idleStart=performance.now(); idleTimer=setTimeout(goHome, CONFIG.idleResetMs); }
+(function idleLoop(){
+  if(state.screen!=="saver"){ const p=Math.min(1,(performance.now()-idleStart)/CONFIG.idleResetMs); idleBar.style.width=(p>.7?p*100:0)+"%"; }
+  else idleBar.style.width="0";
+  requestAnimationFrame(idleLoop);
+})();
+["pointerdown","wheel","touchmove"].forEach(ev=>stage.addEventListener(ev,()=>{ Sound.unlock(); if(state.screen!=="saver") resetIdle(); },{passive:true}));
+
+/* =========================================================
+   9) TECLADO + PANEL DE PRUEBAS
+   ========================================================= */
+function updateDebug(){
+  const names={none:"sin sensor",away:"1 · nadie",near:"2 · se acerca",front:"3 · delante"};
+  document.getElementById("dbgPresence").textContent=names[presence];
+  document.getElementById("dbgWs").textContent=wsState;
+  document.getElementById("dbgSound").textContent=!Sound.ctx||Sound.ctx.state!=="running"?"bloqueado (toca la pantalla)":(Sound.muted?"silenciado":"activo 🔊");
+  dbg.querySelectorAll("[data-p]").forEach(b=>b.classList.toggle("on",b.dataset.p===presence));
+  document.getElementById("dbgMute").classList.toggle("on",Sound.muted);
+}
+dbg.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{ Sound.unlock(); setPresence(b.dataset.p); });
+document.getElementById("dbgMute").onclick=()=>{ Sound.muted=!Sound.muted; updateDebug(); };
+document.getElementById("dbgHome").onclick=()=>goHome();
+addEventListener("keydown",e=>{
+  Sound.unlock(); const k=e.key.toLowerCase();
+  if(k==="0") setPresence("none"); if(k==="1") setPresence("away"); if(k==="2") setPresence("near"); if(k==="3") setPresence("front");
+  if(k==="d") dbg.classList.toggle("show");
+  if(k==="m"){ Sound.muted=!Sound.muted; updateDebug(); }
+  if(k==="r") goHome();
+});
+updateDebug();
+</script>
+</body>
+</html>
