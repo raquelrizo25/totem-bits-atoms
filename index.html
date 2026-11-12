@@ -6,7 +6,7 @@
 <title>Bits & Atoms · Tótem</title>
 <style>
   /* =========================================================
-     TÓTEM BITS & ATOMS — prototipo v13
+     TÓTEM BITS & ATOMS — prototipo v32
      Resolución de diseño: 1080 x 1920 (vertical). Se escala solo.
      Teclas: 0 sin sensor · 1 nadie · 2 se acerca · 3 delante
              D panel debug · M silenciar · R volver al salvapantallas
@@ -164,7 +164,7 @@
   #saver.launch .phrase,#saver.launch #hint,#saver.launch #greeting{opacity:0}
 
   /* ---------- CATÁLOGO ---------- */
-  #catalog{display:flex;flex-direction:column;padding:90px 70px 60px}
+  #catalog{--gap:70px;display:flex;flex-direction:column;justify-content:center;padding:110px 70px 130px}   /* --gap: espacio entre bloques */
   .cat-head{display:flex;align-items:center;gap:30px}
   .cat-head .logo{--size:120px;gap:1px}
   .cat-head h1{font-size:76px;font-weight:800;letter-spacing:-2px;line-height:1}
@@ -200,6 +200,79 @@
   .chip.active{background:var(--ink);color:#000;border-color:var(--ink)}
   .grid{margin-top:30px;flex:1;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:max-content;gap:24px;align-content:start;padding-bottom:130px;scrollbar-width:none}
   .grid::-webkit-scrollbar{display:none}
+  /* ===== Vídeo de presentación (al tocar la primera pantalla) ===== */
+  #intro{position:absolute;inset:0;z-index:12;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    opacity:0;pointer-events:none;transition:opacity .6s ease}
+  #intro.show{opacity:1;pointer-events:auto}
+  #intro .itag{font-family:var(--mono);font-size:28px;letter-spacing:8px;color:#d4b8ff;text-shadow:0 0 12px rgba(180,120,255,.9);margin-bottom:34px;text-transform:uppercase}
+  #intro .ititle{font-size:72px;font-weight:800;letter-spacing:-2px;margin-bottom:50px}
+  #introBox{width:1080px;height:608px;position:relative;background:#000;box-shadow:0 0 120px rgba(108,92,231,.45)}
+  #introBox iframe{width:100%;height:100%;border:0;display:block}
+  #introBox .mute-btn{bottom:-110px;right:auto;left:40px}
+  #skipBtn{
+    position:absolute;right:40px;bottom:40px;z-index:3;font-family:var(--mono);font-size:34px;font-weight:700;letter-spacing:3px;color:#fff;
+    background:rgba(20,20,30,.85);backdrop-filter:blur(8px);border:2px solid rgba(183,173,255,.7);border-radius:999px;padding:20px 40px;
+    box-shadow:0 0 30px rgba(108,92,231,.5);transition:transform .15s, background .2s
+  }
+  #skipBtn:active{transform:scale(.95);background:var(--accent)}
+  #stage:has(#intro.show) #soundBtn,#stage:has(#intro.show) #langBox,#stage:has(#intro.show) #simBtn{display:none}
+
+  /* ===== Anillo 3D del catálogo ===== */
+  #catalog:not(.gridmode) .grid{display:none}
+  #videoBtn,#chips{display:none}   /* catálogo más limpio: sin botón de vídeo ni filtros */
+  /* Pestañas de estado */
+  .status-tabs{display:flex;justify-content:center;gap:0;margin:var(--gap) auto 0;padding:6px;border-radius:999px;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);width:max-content}
+  .status-tabs button{font-family:var(--sans);font-size:26px;font-weight:700;color:#cfd0da;background:none;border:none;
+    border-radius:999px;padding:16px 30px;display:flex;align-items:center;gap:10px;transition:background .25s,color .25s}
+  .status-tabs button .cnt{font-family:var(--mono);font-size:18px;opacity:.7;background:rgba(255,255,255,.1);border-radius:999px;padding:2px 10px}
+  .status-tabs button.on{background:linear-gradient(135deg,#6c5ce7,#9b6dff);color:#fff;box-shadow:0 0 24px rgba(108,92,231,.6)}
+  .status-tabs button.on .cnt{background:rgba(0,0,0,.25);opacity:1}
+  /* Etiqueta de estado: fondo opaco, letras blancas y punto parpadeante */
+  .st-badge{position:absolute;left:16px;bottom:14px;display:inline-flex;align-items:center;gap:9px;
+    font-family:var(--mono);font-size:17px;font-weight:700;color:#fff;background:#111116;
+    padding:7px 14px 7px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.14)}
+  .st-badge::before,.st-tag::before{content:"";width:11px;height:11px;border-radius:50%;flex:none;animation:stBlink 1.2s ease-in-out infinite}
+  .st-badge.done::before,.st-tag.done::before{background:#00d68f;box-shadow:0 0 10px #00d68f}
+  .st-badge.wip::before,.st-tag.wip::before{background:#fdcb6e;box-shadow:0 0 10px #fdcb6e}
+  @keyframes stBlink{0%,100%{opacity:1}50%{opacity:.15}}
+  #detail .tags span.st-tag{display:inline-flex;align-items:center;gap:10px;background:#111116 !important;color:#fff !important;border:1px solid rgba(255,255,255,.14)}
+  .ring-empty{position:absolute;left:0;right:0;top:38%;text-align:center;font-size:34px;color:var(--muted);pointer-events:none}
+  /* Cabecera centrada */
+  #catalog .cat-head{justify-content:center;margin-top:0}
+  #catalog .intro{margin-top:var(--gap);text-align:center;margin-left:auto;margin-right:auto;max-width:900px}
+  #catalog .pillars{justify-content:center;margin-top:28px}
+  #catalog.gridmode .ringwrap{display:none}
+  .ringwrap{position:relative;flex:none;height:780px;margin:var(--gap) -70px 0;perspective:1400px;perspective-origin:50% 333px;touch-action:none;overflow:hidden;cursor:grab}
+  .ringwrap:active{cursor:grabbing}
+  .ring{position:absolute;left:50%;top:333px;width:0;height:0;transform-style:preserve-3d}
+  .ringhub{position:absolute;left:50%;top:333px;width:520px;height:520px;transform:translate(-50%,-50%);border-radius:50%;
+    background:radial-gradient(circle, rgba(108,92,231,.55), rgba(108,92,231,0) 65%);filter:blur(20px);pointer-events:none}
+  .ringfloor{position:absolute;left:50%;top:600px;width:900px;height:140px;transform:translateX(-50%);border-radius:50%;
+    background:radial-gradient(ellipse, rgba(140,120,255,.35), transparent 70%);pointer-events:none}
+  .rcard{
+    position:absolute;width:300px;height:440px;margin:-220px 0 0 -150px;border-radius:24px;overflow:hidden;
+    background:var(--card);border:2px solid rgba(255,255,255,.12);display:flex;flex-direction:column;
+    transition:border-color .3s, box-shadow .3s
+  }
+  .rcard .thumb{height:290px;position:relative;overflow:hidden;background:#111;flex:none}
+  .rcard .thumb img,.rcard .thumb video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .rcard.portrait .thumb img{object-position:center 20%}
+  .rcard .badge{position:absolute;right:16px;top:16px;font-family:var(--mono);font-size:18px;background:rgba(0,0,0,.6);padding:6px 12px;border-radius:999px}
+  .rcard .num{position:absolute;left:16px;top:8px;font-family:var(--mono);font-size:42px;font-weight:700;color:#fff;opacity:.55;text-shadow:0 2px 10px #000}
+  .rcard .body{padding:22px 28px;flex:1;display:flex;flex-direction:column;justify-content:center;
+    background:linear-gradient(180deg, transparent, color-mix(in srgb, var(--c) 22%, transparent))}
+  .rcard h4{font-size:27px;font-weight:800;line-height:1.1}
+  .rcard .tag{font-family:var(--mono);font-size:22px;color:var(--muted);margin-top:10px}
+  .rcard.front{border-color:#b7adff;box-shadow:0 0 60px rgba(108,92,231,.7)}
+  .ring-hint{position:absolute;left:0;right:0;top:733px;text-align:center;font-family:var(--mono);font-size:24px;color:var(--muted);pointer-events:none;animation:hintPulse 2s infinite}
+  .ring-front{position:absolute;left:0;right:0;top:686px;text-align:center;font-size:30px;font-weight:700;color:#e6e1ff;pointer-events:none}
+  @keyframes hintPulse{50%{opacity:.35}}
+  #viewToggle{
+    position:absolute;right:40px;bottom:40px;z-index:6;font-family:var(--mono);font-size:22px;font-weight:700;color:#fff;
+    background:rgba(20,20,30,.85);backdrop-filter:blur(8px);border:2px solid rgba(255,255,255,.22);border-radius:999px;padding:14px 24px
+  }
+  #viewToggle:active{background:var(--accent)}
   .card{background:var(--card);border-radius:28px;overflow:hidden;border:1px solid rgba(255,255,255,.06);transform:translateY(40px) scale(.95);opacity:0;transition:transform .55s cubic-bezier(.2,.8,.2,1), opacity .5s ease}
   .card.in{transform:none;opacity:1}
   .card:active{transform:scale(.97)}
@@ -218,6 +291,7 @@
   #detail .cat{font-family:var(--mono);font-size:24px;color:#b7adff}
   #detail .hero{height:760px;border-radius:34px;overflow:hidden;position:relative;background:#000;transform:translateY(40px) scale(.96);transition:transform .5s cubic-bezier(.2,.8,.2,1);margin-top:18px}
   #detail.open .hero{transform:none}
+  #detail .hero video{object-fit:contain !important;background:#000}
   #detail .hero img,#detail .hero video,#detail .hero iframe{width:100%;height:100%;object-fit:cover;border:0;display:block;animation:fadeIn .5s ease}
   /* Botón de sonido de los vídeos */
   .mute-btn{
@@ -290,11 +364,20 @@
 
     <p class="intro" id="introTxt">Un proyecto de <b>Admira</b> donde se aprende tecnología <b>construyéndola</b>: inteligencia artificial, IoT y creatividad aplicadas a proyectos reales desde el primer día.</p>
     <div class="pillars" id="pillars"></div>
+    <div class="status-tabs" id="statusTabs"></div>
 
     <button class="video-btn" id="videoBtn"><span class="play"></span><span><span id="vbTitle">Conoce Bits &amp; Atoms</span><small id="vbSub">vídeo de presentación</small></span></button>
 
     <div class="chips" id="chips"></div>
+    <div class="ringwrap" id="ringWrap">
+      <div class="ringhub"></div><div class="ringfloor"></div>
+      <div class="ring" id="ring"></div>
+      <div class="ring-empty" id="ringEmpty"></div>
+      <div class="ring-front" id="ringFront"></div>
+      <div class="ring-hint" id="ringHint"></div>
+    </div>
     <div class="grid" id="grid"></div>
+    <button id="viewToggle"></button>
     <div class="idle-bar" id="idleBar"></div>
   </section>
 
@@ -307,6 +390,14 @@
     <div class="tags" id="dTags"></div>
     <p class="desc" id="dDesc"></p>
     <button class="close" id="dClose">Volver a proyectos</button>
+  </section>
+
+  <!-- ============ VÍDEO DE PRESENTACIÓN ============ -->
+  <section id="intro">
+    <div class="itag" id="introTag">▸ BITS &amp; ATOMS ◂</div>
+    <div class="ititle" id="introTitle">Conoce Bits &amp; Atoms</div>
+    <div id="introBox"></div>
+    <button id="skipBtn">SKIP ▸▸</button>
   </section>
 
   <div id="flash"></div>
@@ -367,6 +458,7 @@ const CONFIG = {
    Para el tótem final: descargarlos a una carpeta "media/" y cambiar BASE a "media/". */
 const BASE = "https://www.institutoeuropeo.ai/";
 const P = BASE + "Projects/";
+const L = "media/";   // fotos y vídeos propios (carpeta media/ junto a este index.html)
 
 const SHAPES = [
   { phrase:"bits & atoms",           cells:[0,0,0, 0,0,0, 0,0,0] },
@@ -379,40 +471,65 @@ const SHAPES = [
   { phrase:"what if they are wrong", cells:[2,2,0, 2,2,2, 2,2,2] },
 ];
 
+/* ✏️ ESTADO DE CADA PROYECTO: status:"done" (terminado) o status:"wip" (en proceso).
+   Los de ahora son DE EJEMPLO: cámbialos por los reales. Espacios y mentores no llevan estado (solo salen en "Todos"). */
 /* PROYECTOS Y ESPACIOS (contenido de institutoeuropeo.ai)
    thumb: imagen de la tarjeta · media: galería (fotos .webp/.jpg, vídeos .mp4, o "yt:ID" para YouTube) */
 const PROJECTS = [
-  { title:"Programación", cat:"Programación", color:"#6c5ce7",
+  /* ===== PROYECTOS NUEVOS · EN PROCESO (contenido de la carpeta media/) =====
+     ✏️ Cambia los títulos y descripciones por los nombres reales de cada proyecto */
+  { title:"Portadas Munich · Marca tu X", status:"wip", cat:"Programación", color:"#9b6dff",
+    tags:["Programación","Diseño","Munich"],
+    desc:"Proyecto en desarrollo en Bits & Atoms: portadas de revista personalizadas para la campaña «Marca tu X» de Munich.",
+    thumb:L+"programacion4.jpg",
+    media:[L+"programacion1.mp4",L+"programacion2.jpg",L+"programacion3.jpg",L+"programacion4.jpg",L+"programacion5.jpg"] },
+  { title:"Automatización de plataforma", status:"wip", cat:"Robótica", color:"#ff7675",
+    tags:["Robots","Sensores"],
+    desc:"Proyecto de robótica en desarrollo en Bits & Atoms.",
+    thumb:L+"robotica1.jpg",
+    media:[L+"robotica1.mp4",L+"robotica2.mp4"] },
+  { title:"MiniArcade 3D", status:"wip", cat:"Impresión 3D", color:"#0984e3",
+    tags:["FabLab","Prototipado"],
+    desc:"Piezas impresas en 3D en el FabLab de Bits & Atoms, ahora en desarrollo.",
+    thumb:L+"impresion3d2.jpg",
+    media:[L+"impresion3d1.mp4",L+"impresion3d2.jpg"] },
+  { title:"Videojuego Street Fighter", status:"wip", cat:"Videojuegos", color:"#e1b12c",
+    tags:["Programación","Arte","Narrativa"],
+    desc:"Videojuego en desarrollo en Bits & Atoms.",
+    thumb:L+"videojuego1.jpg",
+    media:[L+"videojuego1.mp4",L+"videojuego2.mp4",L+"videojuego3.mp4"] },
+
+  { title:"Programación", status:"done", cat:"Programación", color:"#6c5ce7",
     tags:["Software","Apps","IoT"],
     desc:"Desarrollo de software, aplicaciones y sistemas a través de código y pensamiento lógico.",
     thumb:P+"programacion/programacion1.webp",
     media:[P+"programacion/programacion1.webp",P+"programacion/IOT.webp",P+"programacion/matProg.webp",P+"programacion/TomPro.webp",P+"programacion/JordiPro.webp",P+"programacion/Mano.webp"] },
-  { title:"Sistemas robóticos autónomos", cat:"Robótica", color:"#e17055",
+  { title:"Sistemas robóticos autónomos", status:"done", cat:"Robótica", color:"#e17055",
     tags:["Robots","Sensores","Automatización"],
     desc:"Creación de robots y sistemas inteligentes que combinan hardware, programación y automatización: brazos robóticos, sensores y plataformas móviles.",
     thumb:P+"Robotica/Robot.webp",
     media:[P+"Robotica/perroRobot.mp4",P+"Robotica/robotDance.mp4",P+"Robotica/camisetaRobot.mp4",P+"Robotica/brazos.webp",P+"Robotica/brazo.webp",P+"Robotica/perroRBT.webp"] },
-  { title:"Impresión 3D", cat:"Impresión 3D", color:"#74b9ff",
+  { title:"Accesorio para micrófono", status:"done", cat:"Impresión 3D", color:"#74b9ff",
     tags:["FabLab","Prototipado","Diseño"],
     desc:"Diseño y fabricación de objetos físicos a partir de modelos digitales mediante impresión 3D.",
     thumb:P+"Impresion3D/hanna%20migflag.webp",
     media:[P+"Impresion3D/enDirecto.mp4",P+"Impresion3D/hanna3D.mp4",P+"Impresion3D/impresion3d.webp",P+"Impresion3D/hanna%20migflag.webp"] },
-  { title:"Videojuegos", cat:"Videojuegos", color:"#fdcb6e",
+  { title:"Jurassic Park interactivo", status:"done", cat:"Videojuegos", color:"#fdcb6e",
     tags:["Programación","Arte","Narrativa"],
     desc:"Diseño y desarrollo de videojuegos interactivos combinando programación, arte y narrativa.",
     thumb:BASE+"img/jeep.webp",
     media:[P+"Vjuegos/VideoGameJeep.mp4",P+"Vjuegos/videoExpli.MP4",P+"Vjuegos/Backjeep.webp"] },
-  { title:"Realidad virtual", cat:"RV", color:"#00cec9",
+  { title:"Realidad virtual", status:"done", cat:"RV", color:"#00cec9",
     tags:["Inmersivo","Interacción"],
     desc:"Experiencias inmersivas en realidad virtual que exploran nuevas formas de interacción digital.",
     thumb:P+"RV/ImgRV.webp",
     media:[P+"RV/Video_gafasRv.mp4",P+"RV/ImgRV.webp"] },
-  { title:"Podcast", cat:"Audiovisual", color:"#fd79a8",
+  { title:"Podcast", status:"done", cat:"Audiovisual", color:"#fd79a8",
     tags:["Podcast","YouTube"],
     desc:"Conversaciones y contenido sonoro para compartir ideas, proyectos y aprendizaje. Más episodios en el canal de YouTube de Bits & Atoms.",
     thumb:P+"podcast/podcast1.webp",
     media:["yt:_Fa6OJ_CoUQ","yt:ZZ4M4r3-CvQ","yt:aFGzTiHh0Ho",P+"podcast/podcast3.webp",P+"podcast/podcastElena.webp",P+"podcast/pddcast.webp",P+"podcast/podcastAg.webp",P+"podcast/pdcs.webp"] },
-  { title:"Realización", cat:"Audiovisual", color:"#a29bfe",
+  { title:"Realización", status:"done", cat:"Audiovisual", color:"#a29bfe",
     tags:["Grabación","Edición","Producción"],
     desc:"Producción audiovisual de proyectos tecnológicos, desde la grabación hasta la edición final.",
     thumb:P+"Realizacion/podcast2.webp",
@@ -466,7 +583,10 @@ const MENTORS = [
     desc:"Da vida a tus ideas con excelencia técnica y creatividad, dominando cada etapa de la producción y postproducción audiovisual." },
 ];
 // Los mentores también aparecen en el catálogo con el filtro "Mentores"
-MENTORS.forEach(m=>PROJECTS.push({ title:m.name, cat:"Mentores", color:"#6c5ce7", tags:[m.area,"Mentor"], desc:m.desc, thumb:m.photo, media:[m.photo], portrait:true }));
+// Espacios desactivados: el tótem se centra solo en los proyectos (para recuperarlos, borra esta línea)
+for(let k=PROJECTS.length-1;k>=0;k--) if(PROJECTS[k].cat==="Espacios") PROJECTS.splice(k,1);
+// Mentores desactivados en el tótem (para volver a mostrarlos, quita las dos barras "//" de la línea de abajo)
+// MENTORS.forEach(m=>PROJECTS.push({ title:m.name, cat:"Mentores", color:"#6c5ce7", tags:[m.area,"Mentor"], desc:m.desc, thumb:m.photo, media:[m.photo], portrait:true }));
 
 /* =========================================================
    IDIOMAS — Català · Español · English
@@ -486,7 +606,7 @@ const UI = {
        intro:'Un proyecto de <b>Admira</b> donde se aprende tecnología <b>construyéndola</b>: inteligencia artificial, IoT y creatividad aplicadas a proyectos reales desde el primer día.',
        pillars:["learning by doing","proyectos reales","mentores","colaboración"],
        videoTitle:"Conoce Bits & Atoms", videoSub:"vídeo de presentación",
-       all:"Todos", video:"vídeo", videos:"vídeos", backProjects:"Volver a proyectos",
+       all:"Todos", video:"vídeo", videos:"vídeos", backProjects:"Volver a proyectos", ringHint:"◂ desliza para girar · toca un proyecto ▸", stDone:"Terminados", stWip:"En proceso", stAll:"Todos", bDone:"Terminado", bWip:"En proceso", empty:"Aún no hay proyectos aquí", gridView:"VER CUADRÍCULA", ringView:"VER ANILLO 3D",
        full:"Pantalla completa", exit:"Salir", mute:"Silenciar", unmute:"Activar sonido",
        soundOn:"sonido activado", soundOff:"sonido desactivado", language:"Idioma",
        introDesc:"Bits and Atoms es un proyecto de Admira pensado para formar, acompañar y crear oportunidades reales para jóvenes con talento. Construir, probar y equivocarse es parte del camino." },
@@ -498,7 +618,7 @@ const UI = {
        intro:"Un projecte d'<b>Admira</b> on s'aprèn tecnologia <b>construint-la</b>: intel·ligència artificial, IoT i creativitat aplicades a projectes reals des del primer dia.",
        pillars:["learning by doing","projectes reals","mentors","col·laboració"],
        videoTitle:"Coneix Bits & Atoms", videoSub:"vídeo de presentació",
-       all:"Tots", video:"vídeo", videos:"vídeos", backProjects:"Tornar als projectes",
+       all:"Tots", video:"vídeo", videos:"vídeos", backProjects:"Tornar als projectes", ringHint:"◂ llisca per girar · toca un projecte ▸", stDone:"Acabats", stWip:"En procés", stAll:"Tots", bDone:"Acabat", bWip:"En procés", empty:"Encara no hi ha projectes aquí", gridView:"VEURE QUADRÍCULA", ringView:"VEURE ANELL 3D",
        full:"Pantalla completa", exit:"Sortir", mute:"Silenciar", unmute:"Activar el so",
        soundOn:"so activat", soundOff:"so desactivat", language:"Idioma",
        introDesc:"Bits and Atoms és un projecte d'Admira pensat per formar, acompanyar i crear oportunitats reals per a joves amb talent. Construir, provar i equivocar-se forma part del camí." },
@@ -510,7 +630,7 @@ const UI = {
        intro:"An <b>Admira</b> project where you learn technology by <b>building it</b>: artificial intelligence, IoT and creativity applied to real projects from day one.",
        pillars:["learning by doing","real projects","mentors","collaboration"],
        videoTitle:"Meet Bits & Atoms", videoSub:"intro video",
-       all:"All", video:"video", videos:"videos", backProjects:"Back to projects",
+       all:"All", video:"video", videos:"videos", backProjects:"Back to projects", ringHint:"◂ swipe to spin · tap a project ▸", stDone:"Finished", stWip:"In progress", stAll:"All", bDone:"Finished", bWip:"In progress", empty:"No projects here yet", gridView:"GRID VIEW", ringView:"3D RING VIEW",
        full:"Full screen", exit:"Exit", mute:"Mute", unmute:"Turn sound on",
        soundOn:"sound on", soundOff:"sound off", language:"Language",
        introDesc:"Bits and Atoms is an Admira project designed to train, support and create real opportunities for talented young people. Building, testing and making mistakes are part of the journey." },
@@ -521,6 +641,17 @@ const TR = {
   "Impresión 3D":{ca:"Impressió 3D",en:"3D printing"}, "Videojuegos":{ca:"Videojocs",en:"Video games"},
   "RV":{ca:"RV",en:"VR"}, "Espacios":{ca:"Espais",en:"Spaces"}, "Mentores":{ca:"Mentors",en:"Mentors"},
   "Presentación":{ca:"Presentació",en:"Introduction"},
+  // proyectos nuevos
+  "Portadas Munich · Marca tu X":{ca:"Portades Munich · Marca tu X",en:"Munich covers · Marca tu X"},
+  "Nuevo proyecto de robótica":{ca:"Nou projecte de robòtica",en:"New robotics project"},
+  "Nuevo proyecto de impresión 3D":{ca:"Nou projecte d'impressió 3D",en:"New 3D printing project"},
+  "Nuevo videojuego":{ca:"Nou videojoc",en:"New video game"},
+  "Proyecto en desarrollo en Bits & Atoms: portadas de revista personalizadas para la campaña «Marca tu X» de Munich.":
+    {ca:"Projecte en desenvolupament a Bits & Atoms: portades de revista personalitzades per a la campanya «Marca tu X» de Munich.",en:"Project in progress at Bits & Atoms: personalised magazine covers for Munich's «Marca tu X» campaign."},
+  "Proyecto de robótica en desarrollo en Bits & Atoms.":{ca:"Projecte de robòtica en desenvolupament a Bits & Atoms.",en:"Robotics project in progress at Bits & Atoms."},
+  "Piezas impresas en 3D en el FabLab de Bits & Atoms, ahora en desarrollo.":{ca:"Peces impreses en 3D al FabLab de Bits & Atoms, ara en desenvolupament.",en:"3D-printed parts from the Bits & Atoms FabLab, now in progress."},
+  "Videojuego en desarrollo en Bits & Atoms.":{ca:"Videojoc en desenvolupament a Bits & Atoms.",en:"Video game in progress at Bits & Atoms."},
+  "Munich":{ca:"Munich",en:"Munich"},
   // títulos
   "Sistemas robóticos autónomos":{ca:"Sistemes robòtics autònoms",en:"Autonomous robotic systems"},
   "Realidad virtual":{ca:"Realitat virtual",en:"Virtual reality"}, "Realización":{ca:"Realització",en:"Video production"},
@@ -596,7 +727,7 @@ const ui = k => (UI[lang] && UI[lang][k]!==undefined) ? UI[lang][k] : UI.es[k]; 
    ========================================================= */
 let wsState="desconectado";
 let presence="none";
-const state={screen:"saver", filter:"Todos", busy:false, videoMuted:false}; // videoMuted: preferencia del visitante (por defecto CON sonido)
+const state={screen:"saver", filter:"Todos", status:"all", busy:false, videoMuted:false}; // videoMuted: preferencia del visitante (por defecto CON sonido)
 const dbg=document.getElementById("debug");
 const stage=document.getElementById("stage");
 function fit(){ const s=Math.min(innerWidth/1080, innerHeight/1920); stage.style.transform=`translate(-50%,-50%) scale(${s})`; }
@@ -865,6 +996,7 @@ const saver=document.getElementById("saver"), catalog=document.getElementById("c
 // 🚀 Toca para descubrir → los triángulos salen disparados, salto al hiperespacio, flash y aparece el catálogo
 function openCatalog(){
   if(state.screen!=="saver" || state.busy) return;
+  ringCancel(); closeDetail(true);
   state.busy=true;
   Sound.launch();
   saver.classList.add("launch");
@@ -882,9 +1014,8 @@ function openCatalog(){
   setTimeout(()=>{ flash.animate([{opacity:0},{opacity:.9,offset:.3},{opacity:0}],{duration:700,easing:"ease-out"}); },950);
   setTimeout(()=>{
     warpTarget=0;
-    state.screen="catalog";
-    saver.classList.add("hidden"); catalog.classList.remove("hidden");
-    renderGrid(); resetIdle();
+    saver.classList.add("hidden");
+    showIntro();
   },1150);
   setTimeout(()=>{
     // dejar el logo grande listo para cuando se vuelva
@@ -893,8 +1024,38 @@ function openCatalog(){
     state.busy=false;
   },2200);
 }
+/* ---- Vídeo de presentación en modo pantalla completa ---- */
+const intro=document.getElementById("intro"), introBox=document.getElementById("introBox");
+let introSafety=null;
+function showIntro(){
+  state.screen="intro";
+  document.getElementById("introTitle").textContent=ui("videoTitle");
+  introBox.innerHTML="";
+  const p={title:ui("videoTitle"), color:"#6c5ce7"};
+  const f=mediaEl(CONFIG.introVideo, p, 0);
+  introBox.appendChild(f);
+  addMuteButton(introBox, f);
+  ytWatch(f, ()=>enterCatalog());               // al acabar el vídeo → catálogo
+  intro.classList.add("show");
+  clearTimeout(introSafety);
+  introSafety=setTimeout(()=>{ if(state.screen==="intro") enterCatalog(); }, 8*60*1000); // por seguridad
+}
+function enterCatalog(){
+  if(state.screen!=="intro") return;
+  clearTimeout(introSafety);
+  ytActive=null;
+  intro.classList.remove("show");
+  setTimeout(()=>{ if(state.screen!=="intro") introBox.innerHTML=""; }, 650);
+  state.screen="catalog";
+  catalog.classList.remove("hidden");
+  renderGrid(); resetIdle();
+}
+document.getElementById("skipBtn").addEventListener("click", e=>{ e.stopPropagation(); Sound.tap(); Sound.whoosh(true); enterCatalog(); });
+
 function goHome(){
+  ringCancel();
   closeDetail(true);
+  if(state.screen==="intro"){ clearTimeout(introSafety); intro.classList.remove("show"); introBox.innerHTML=""; }
   if(state.screen==="saver") return;
   state.screen="saver"; state.videoMuted=Sound.muted; Sound.powerDown();
   catalog.classList.add("hidden"); saver.classList.remove("hidden");
@@ -959,9 +1120,9 @@ function mediaEl(src, p, i, {thumb=false}={}){
 }
 
 function renderGrid(){
+  renderRing();
   const grid=document.getElementById("grid"); grid.innerHTML=""; let n=0;
-  PROJECTS.forEach((p,i)=>{
-    if(state.filter!=="Todos" && p.cat!==state.filter) return;
+  ringItems().forEach(({p,i})=>{
     const card=document.createElement("div"); card.className="card"+(p.portrait?" portrait":"");
     const th=document.createElement("div"); th.className="thumb"; th.appendChild(mediaEl(p.thumb||p.media[0],p,i));
     const vids=p.media.filter(m=>isVideo(m)||isYT(m)).length;
@@ -974,6 +1135,147 @@ function renderGrid(){
     const k=n++; setTimeout(()=>card.classList.add("in"), 80+k*80);
   });
 }
+
+/* =========================================================
+   ANILLO 3D (catálogo) — desliza para girar, toca para abrir
+   ========================================================= */
+const ringEl=document.getElementById("ring"), ringWrap=document.getElementById("ringWrap");
+const R3={ang:0, vel:0, drag:false, lx:0, moved:0, R:900, step:36, cards:[], front:-1, downCard:null};
+function ringItems(){
+  return PROJECTS.map((p,i)=>({p,i})).filter(({p})=>
+    (state.filter==="Todos" || p.cat===state.filter) &&
+    (state.status==="all" || p.status===state.status));
+}
+// Pestañas: Terminados · En proceso · Todos
+function renderStatusTabs(){
+  const box=document.getElementById("statusTabs"); box.innerHTML="";
+  const count=v=>PROJECTS.filter(p=>v==="all"||p.status===v).length;
+  [["done","stDone"],["wip","stWip"],["all","stAll"]].forEach(([v,k])=>{
+    const b=document.createElement("button"); b.className=v===state.status?"on":"";
+    b.innerHTML=`<span></span><span class="cnt">${count(v)}</span>`; b.firstChild.textContent=ui(k);
+    b.onclick=()=>{ if(state.status===v) return; Sound.tap(); Sound.whoosh(true); state.status=v; renderStatusTabs(); renderGrid(); resetIdle(); };
+    box.appendChild(b);
+  });
+}
+/* Anillo "infinito": siempre 10 huecos alrededor del anillo (se ve la parte de atrás, efecto 3D).
+   Si hay más proyectos que huecos, las tarjetas de atrás van cambiando de contenido al girar. */
+const RING_SLOTS=10;
+let ringList=[];          // proyectos del filtro actual
+function buildCardContent(p,i,num){
+  const frag=document.createDocumentFragment();
+  const th=document.createElement("div"); th.className="thumb"; th.appendChild(mediaEl(p.thumb||p.media[0],p,i));
+  const nm=document.createElement("span"); nm.className="num"; nm.textContent=String(num+1).padStart(2,"0"); th.appendChild(nm);
+  const vids=p.media.filter(m=>isVideo(m)||isYT(m)).length;
+  if(vids){ const b=document.createElement("span"); b.className="badge"; b.textContent=`▶ ${vids} ${vids>1?ui("videos"):ui("video")}`; th.appendChild(b); }
+  if(p.status){ const sb=document.createElement("span"); sb.className="st-badge "+p.status; sb.textContent=ui(p.status==="done"?"bDone":"bWip"); th.appendChild(sb); }
+  const body=document.createElement("div"); body.className="body"; body.innerHTML="<h4></h4><div class='tag'></div>";
+  body.querySelector("h4").textContent=t(p.title); body.querySelector(".tag").textContent=t(p.cat).toLowerCase();
+  frag.append(th,body); return frag;
+}
+function renderRing(){
+  ringList=ringItems(); ringEl.innerHTML="";
+  const n=ringList.length;
+  R3.slots = n>=6 ? Math.min(n,RING_SLOTS) : (n>1 ? 6 : 1);    // 6-10 proyectos: uno por hueco · menos de 6: se repiten por detrás para cerrar el anillo
+  R3.step=360/R3.slots;
+  R3.R = R3.slots<=2 ? 300 : Math.max(360, 345/(2*Math.sin(Math.PI/R3.slots)));
+  R3.ang=0; R3.vel=0; R3.front=-1;
+  R3.cards=[];
+  for(let k=0;k<R3.slots && n;k++){
+    const c=document.createElement("div"); c.className="rcard"; c._item=-1;
+    c._base=`rotateY(${k*R3.step}deg) translateZ(${R3.R}px)`;
+    ringEl.appendChild(c); R3.cards.push(c);
+  }
+  document.getElementById("ringHint").textContent=ui("ringHint");
+  document.getElementById("ringEmpty").textContent = n ? "" : ui("empty");
+  if(!n) document.getElementById("ringFront").textContent="";
+  R3.vel = n>1 ? -5 : 0;   // pequeño giro de entrada
+}
+function setSlotItem(c, g){
+  const n=ringList.length, idx=((g%n)+n)%n;
+  if(c._item===idx) return;
+  c._item=idx;
+  const {p,i}=ringList[idx];
+  c.className="rcard"+(p.portrait?" portrait":""); c.dataset.i=i;
+  c.style.setProperty("--c", p.color||"#6c5ce7");
+  c.replaceChildren(buildCardContent(p,i,idx));
+}
+function ringFrame(){
+  if(state.screen==="catalog" && R3.cards.length){
+    if(!R3.drag){
+      R3.ang+=R3.vel; R3.vel*=.94;
+      if(Math.abs(R3.vel)<.05){ R3.vel=0; const target=Math.round(R3.ang/R3.step)*R3.step; R3.ang+=(target-R3.ang)*.1; }
+    }
+    // anillo recto y alejado: así se ve entero, con la parte de atrás entre las tarjetas
+    ringEl.style.transform=`scale3d(1.12,1.12,1.12) translateZ(${-R3.R*.45}px) rotateY(${R3.ang}deg)`;
+    const S=R3.slots, frontG=Math.round(-R3.ang/R3.step);
+    let frontCard=null;
+    R3.cards.forEach((c,k)=>{
+      const a=((k*R3.step+R3.ang)%360+540)%360-180;          // ángulo respecto al frente
+      const rel=Math.round(a/R3.step);                         // posición respecto al frente (en tarjetas)
+      setSlotItem(c, frontG+rel);
+      const vis=(Math.cos(a*Math.PI/180)+1)/2;                 // 1 delante · 0 detrás
+      c.style.transform=c._base;
+      c.style.opacity=(.22+.78*vis).toFixed(3);
+      c.style.filter=`brightness(${(.35+.65*vis).toFixed(3)}) saturate(${(.6+.4*vis).toFixed(2)})`;
+      c.style.pointerEvents = Math.abs(a)<40 ? "auto" : "none";
+      c.style.zIndex = Math.round(vis*100);
+      if(rel===0) frontCard=c;
+    });
+    const n=ringList.length, front=((frontG%n)+n)%n;
+    if(front!==R3.front && frontCard){
+      if(R3.front!==-1) Sound.tick();
+      R3.cards.forEach(c=>c.classList.toggle("front",c===frontCard));
+      R3.front=front;
+      document.getElementById("ringFront").textContent=t(ringList[front].p.title);
+    }
+  }
+  requestAnimationFrame(ringFrame);
+}
+requestAnimationFrame(ringFrame);
+const stageScale=()=>stage.getBoundingClientRect().width/1080;
+ringWrap.addEventListener("pointerdown",e=>{
+  if(state.screen!=="catalog" || detail.classList.contains("open")) return;
+  R3.drag=true; R3.lx=e.clientX; R3.moved=0; R3.vel=0; R3.downX=e.clientX; R3.downY=e.clientY;
+  R3.downCard=cardAt(e.clientX,e.clientY);
+});
+// Qué tarjeta hay en ese punto de la pantalla (calculado con su posición, más fiable que el clic en 3D)
+function cardAt(x,y){
+  const list=[...R3.cards].sort((a,b)=>(+b.style.zIndex||0)-(+a.style.zIndex||0));
+  for(const c of list){
+    if(+c.style.opacity<.6) continue;               // solo las de delante
+    const r=c.getBoundingClientRect();
+    if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom) return c;
+  }
+  return null;
+}
+// Anula cualquier toque "a medias" del anillo (evita que se abra un proyecto desde otra pantalla)
+function ringCancel(){ R3.drag=false; R3.downCard=null; R3.moved=0; }
+addEventListener("pointercancel", ringCancel);
+addEventListener("blur", ringCancel);
+addEventListener("pointermove",e=>{
+  if(!R3.drag) return;
+  const d=(e.clientX-R3.lx)/stageScale(); R3.lx=e.clientX; R3.moved+=Math.abs(d);
+  R3.ang+=d*.12; R3.vel=d*.12;
+});
+addEventListener("pointerup",e=>{
+  if(!R3.drag) return; R3.drag=false;
+  // solo abre si seguimos en el catálogo y se ha soltado sobre la misma tarjeta
+  const upCard = cardAt(e.clientX, e.clientY);
+  if(state.screen==="catalog" && !detail.classList.contains("open") && R3.moved<10 && R3.downCard && upCard===R3.downCard){
+    const i=+R3.downCard.dataset.i; Sound.tap(); openDetail(PROJECTS[i], i);
+  }
+  R3.downCard=null;
+});
+ringWrap.addEventListener("wheel",e=>{ R3.vel+= (e.deltaY||e.deltaX)*-.02; e.preventDefault(); resetIdle(); },{passive:false});
+// Flechas del teclado para girar en PC
+addEventListener("keydown",e=>{
+  if(state.screen!=="catalog" || detail.classList.contains("open")) return;
+  if(e.key==="ArrowRight") R3.vel=-4; if(e.key==="ArrowLeft") R3.vel=4;
+});
+// Botón anillo / cuadrícula
+const viewToggle=document.getElementById("viewToggle");
+function paintToggle(){ viewToggle.textContent = catalog.classList.contains("gridmode") ? ui("ringView") : ui("gridView"); }
+viewToggle.addEventListener("click",()=>{ Sound.tap(); catalog.classList.toggle("gridmode"); paintToggle(); resetIdle(); });
 
 // Fila de mentores
 function renderMentors(){
@@ -1074,7 +1376,7 @@ addEventListener("message", e=>{
 });
 // mientras el vídeo de YouTube suena, se mantiene el tótem despierto
 setInterval(()=>{
-  if(!ytActive || !detail.classList.contains("open") || !document.getElementById("dHero").contains(ytActive.frame)){ ytActive=null; return; }
+  if(!ytActive || !document.body.contains(ytActive.frame)){ ytActive=null; return; }
   const noNews = performance.now()-ytActive.lastMsg > 4000;
   // si YouTube no manda información (algunos navegadores en local), por si acaso se mantiene despierto hasta 15 min
   if(ytActive.playing || (noNews && performance.now()-ytActive.started < 15*60*1000)) resetIdle();
@@ -1084,6 +1386,7 @@ function openDetail(p,i){
   document.getElementById("dTitle").textContent=t(p.title);
   document.getElementById("dDesc").textContent=t(p.desc);
   const tags=document.getElementById("dTags"); tags.innerHTML="";
+  if(p.status){ const s=document.createElement("span"); s.className="st-tag "+p.status; s.textContent=ui(p.status==="done"?"bDone":"bWip"); tags.appendChild(s); }
   p.tags.forEach(tg=>{ const s=document.createElement("span"); s.textContent=t(tg); tags.appendChild(s); });
   const th=document.getElementById("dThumbs"); th.innerHTML="";
   th.style.display=p.media.length>1?"flex":"none";
@@ -1109,7 +1412,7 @@ document.getElementById("dClose").addEventListener("click",()=>{ Sound.tap(); cl
    8) INACTIVIDAD
    ========================================================= */
 let idleTimer, idleStart=0; const idleBar=document.getElementById("idleBar");
-function resetIdle(){ clearTimeout(idleTimer); idleStart=performance.now(); idleTimer=setTimeout(()=>{ goHome(); if(lang!==CONFIG.defaultLang) setLang(CONFIG.defaultLang); }, CONFIG.idleResetMs); }
+function resetIdle(){ clearTimeout(idleTimer); idleStart=performance.now(); idleTimer=setTimeout(()=>{ goHome(); state.status="all"; renderStatusTabs(); if(lang!==CONFIG.defaultLang) setLang(CONFIG.defaultLang); }, CONFIG.idleResetMs); }
 (function idleLoop(){
   if(state.screen!=="saver"){ const p=Math.min(1,(performance.now()-idleStart)/CONFIG.idleResetMs); idleBar.style.width=(p>.7?p*100:0)+"%"; }
   else idleBar.style.width="0";
@@ -1171,6 +1474,8 @@ function applyLang(){
   document.getElementById("dClose").textContent=ui("backProjects");
   renderChips();
   if(state.screen==="catalog") renderGrid();
+  if(typeof paintToggle==="function") paintToggle();
+  renderStatusTabs();
   if(typeof setGlobalMute==="function" && soundBtn) setGlobalMute(Sound.muted, true);
 }
 function setLang(code){ lang=code; applyLang(); fillVoiceSelect(); }
